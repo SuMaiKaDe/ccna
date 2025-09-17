@@ -44,7 +44,7 @@ function getConfigPath(): string {
 function ensureConfigDir(): void {
   const homeDir = os.homedir();
   const configDir = path.join(homeDir, '.claude-config');
-  
+
   if (!fs.existsSync(configDir)) {
     fs.mkdirSync(configDir, { recursive: true });
   }
@@ -58,11 +58,11 @@ function saveConfig(config: Config): void {
 
 function loadConfig(): Config | null {
   const configPath = getConfigPath();
-  
+
   if (!fs.existsSync(configPath)) {
     return null;
   }
-  
+
   try {
     const configData = fs.readFileSync(configPath, 'utf8');
     return JSON.parse(configData);
@@ -74,7 +74,7 @@ function loadConfig(): Config | null {
 
 function clearConfig(): void {
   const configPath = getConfigPath();
-  
+
   if (fs.existsSync(configPath)) {
     fs.unlinkSync(configPath);
     console.log(chalk.green('配置已清空'));
@@ -139,17 +139,7 @@ async function getModels(baseUrl: string, authToken: string): Promise<Model[]> {
 
     const models = response.data.data || [];
 
-    // 过滤出 Claude 相关的模型
-    const claudeModels = models.filter(model => {
-      const modelId = model.id.toLowerCase();
-      return modelId.includes('claude') ||
-        modelId.includes('opus') ||
-        modelId.includes('sonnet') ||
-        modelId.includes('haiku');
-    });
-
-    // 如果没有找到 Claude 模型，返回所有模型
-    return claudeModels.length > 0 ? claudeModels : models;
+    return models;
   } catch (error) {
     if (axios.isAxiosError(error)) {
       const errorMessage = error.response?.data?.error?.message ||
@@ -249,7 +239,7 @@ async function startClaudeWithEnv(config: {
 }, extraArgs: string[] = []): Promise<void> {
   try {
     const { spawn } = require('child_process');
-    
+
     // 设置环境变量
     const env = {
       ...process.env,
@@ -259,10 +249,8 @@ async function startClaudeWithEnv(config: {
       ANTHROPIC_DEFAULT_SONNET_MODEL: config.sonnetModel,
       ANTHROPIC_DEFAULT_HAIKU_MODEL: config.haikuModel,
       CLAUDE_CODE_SUBAGENT_MODEL: config.subagentModel,
-      // Windows 需要设置 Git Bash 路径
-      CLAUDE_CODE_GIT_BASH_PATH: 'D:\\Program Files\\Git\\bin\\bash.exe'
     };
-    
+
     // 尝试不同的 Claude 命令路径
     const claudeCommands = [
       'claude',
@@ -271,12 +259,12 @@ async function startClaudeWithEnv(config: {
       '.\\claude.cmd',
       '.\\claude.exe'
     ];
-    
+
     let child;
     for (const command of claudeCommands) {
       try {
         console.log(chalk.gray(`尝试启动: ${command}`));
-        child = spawn(command, extraArgs, { 
+        child = spawn(command, extraArgs, {
           stdio: 'inherit',
           env: env,
           shell: true
@@ -286,7 +274,7 @@ async function startClaudeWithEnv(config: {
         continue;
       }
     }
-    
+
     if (!child) {
       throw new Error('无法找到 Claude 可执行文件');
     }
@@ -302,7 +290,7 @@ async function startClaudeWithEnv(config: {
         console.error(chalk.red(`Claude Code 退出，代码: ${code}`));
       }
     });
-    
+
   } catch (error) {
     console.error(chalk.red(`启动 Claude Code 失败: ${error instanceof Error ? error.message : String(error)}`));
     console.log(chalk.yellow('\n请手动设置以下环境变量后运行 claude 命令:'));
@@ -312,7 +300,6 @@ async function startClaudeWithEnv(config: {
     console.log(chalk.gray(`set ANTHROPIC_DEFAULT_SONNET_MODEL=${config.sonnetModel}`));
     console.log(chalk.gray(`set ANTHROPIC_DEFAULT_HAIKU_MODEL=${config.haikuModel}`));
     console.log(chalk.gray(`set CLAUDE_CODE_SUBAGENT_MODEL=${config.subagentModel}`));
-    console.log(chalk.gray(`set CLAUDE_CODE_GIT_BASH_PATH=D:\\Program Files\\Git\\bin\\bash.exe`));
   }
 }
 
@@ -321,122 +308,122 @@ async function configureInitial(): Promise<Config> {
     console.log(chalk.blue('Claude Code 初始配置'));
     console.log('='.repeat(40));
 
-  // 获取 API 配置
-  const answers = await inquirer.prompt([
-    {
-      type: 'input',
-      name: 'baseUrl',
-      message: '请输入 NEW-api 接口地址:',
-      default: 'https://api.anthropic.com',
-      validate: (input: string) => {
-        if (!input.trim()) {
-          return '接口地址不能为空';
+    // 获取 API 配置
+    const answers = await inquirer.prompt([
+      {
+        type: 'input',
+        name: 'baseUrl',
+        message: '请输入 NEW-api 接口地址:',
+        default: 'https://api.anthropic.com',
+        validate: (input: string) => {
+          if (!input.trim()) {
+            return '接口地址不能为空';
+          }
+          return true;
         }
-        return true;
-      }
-    },
-    {
-      type: 'password',
-      name: 'authToken',
-      message: '请输入 API 密钥:',
-      validate: (input: string) => {
-        if (!input.trim()) {
-          return 'API 密钥不能为空';
+      },
+      {
+        type: 'password',
+        name: 'authToken',
+        message: '请输入 API 密钥:',
+        validate: (input: string) => {
+          if (!input.trim()) {
+            return 'API 密钥不能为空';
+          }
+          return true;
         }
-        return true;
       }
+    ]);
+
+    const { baseUrl, authToken } = answers;
+
+    // 获取模型列表
+    console.log(chalk.yellow('\n正在获取可用模型...'));
+    const models = await getModels(baseUrl, authToken);
+
+    if (models.length === 0) {
+      console.error(chalk.red('无法获取模型列表，请检查接口地址和密钥是否正确'));
+      process.exit(1);
     }
-  ]);
 
-  const { baseUrl, authToken } = answers;
+    // 显示模型列表
+    console.log(chalk.green('\n可用的模型:'));
+    const modelChoices = models.map((model, index) => ({
+      name: `${model.id} ${model.owned_by ? `(${model.owned_by})` : ''}`,
+      value: model.id,
+      short: model.id
+    }));
 
-  // 获取模型列表
-  console.log(chalk.yellow('\n正在获取可用模型...'));
-  const models = await getModels(baseUrl, authToken);
+    // 分类模型
+    const modelIds = models.map(m => m.id);
+    const categories = categorizeModels(modelIds);
 
-  if (models.length === 0) {
-    console.error(chalk.red('无法获取模型列表，请检查接口地址和密钥是否正确'));
-    process.exit(1);
-  }
+    // 选择模型
+    console.log(chalk.blue('\n请选择默认模型:'));
 
-  // 显示模型列表
-  console.log(chalk.green('\n可用的模型:'));
-  const modelChoices = models.map((model, index) => ({
-    name: `${model.id} ${model.owned_by ? `(${model.owned_by})` : ''}`,
-    value: model.id,
-    short: model.id
-  }));
+    // 选择 Opus 模型
+    const opusModels = categories.opus.length > 0 ? categories.opus : categories.other;
+    const opusChoices = modelChoices.filter(choice => opusModels.includes(choice.value));
+    const { opusModel } = await inquirer.prompt([
+      {
+        type: 'list',
+        name: 'opusModel',
+        message: '选择 Opus 模型 (用于 opus 或计划模式激活时的 opusplan):',
+        choices: opusChoices,
+        default: opusChoices[0]?.value
+      }
+    ]);
 
-  // 分类模型
-  const modelIds = models.map(m => m.id);
-  const categories = categorizeModels(modelIds);
+    // 选择 Sonnet 模型
+    const sonnetModels = categories.sonnet.length > 0 ? categories.sonnet : categories.other;
+    const sonnetChoices = modelChoices.filter(choice => sonnetModels.includes(choice.value));
+    const { sonnetModel } = await inquirer.prompt([
+      {
+        type: 'list',
+        name: 'sonnetModel',
+        message: '选择 Sonnet 模型 (用于 sonnet 或计划模式未激活时的 opusplan):',
+        choices: sonnetChoices,
+        default: sonnetChoices[0]?.value
+      }
+    ]);
 
-  // 选择模型
-  console.log(chalk.blue('\n请选择默认模型:'));
+    // 选择 Haiku 模型
+    const haikuModels = categories.haiku.length > 0 ? categories.haiku : categories.other;
+    const haikuChoices = modelChoices.filter(choice => haikuModels.includes(choice.value));
+    const { haikuModel } = await inquirer.prompt([
+      {
+        type: 'list',
+        name: 'haikuModel',
+        message: '选择 Haiku 模型 (用于 haiku 或后台功能):',
+        choices: haikuChoices,
+        default: haikuChoices[0]?.value
+      }
+    ]);
 
-  // 选择 Opus 模型
-  const opusModels = categories.opus.length > 0 ? categories.opus : categories.other;
-  const opusChoices = modelChoices.filter(choice => opusModels.includes(choice.value));
-  const { opusModel } = await inquirer.prompt([
-    {
-      type: 'list',
-      name: 'opusModel',
-      message: '选择 Opus 模型 (用于 opus 或计划模式激活时的 opusplan):',
-      choices: opusChoices,
-      default: opusChoices[0]?.value
-    }
-  ]);
+    // 选择子代理模型
+    const { subagentModel } = await inquirer.prompt([
+      {
+        type: 'list',
+        name: 'subagentModel',
+        message: '选择子代理模型:',
+        choices: modelChoices,
+        default: modelChoices[1]?.value || modelChoices[0]?.value
+      }
+    ]);
 
-  // 选择 Sonnet 模型
-  const sonnetModels = categories.sonnet.length > 0 ? categories.sonnet : categories.other;
-  const sonnetChoices = modelChoices.filter(choice => sonnetModels.includes(choice.value));
-  const { sonnetModel } = await inquirer.prompt([
-    {
-      type: 'list',
-      name: 'sonnetModel',
-      message: '选择 Sonnet 模型 (用于 sonnet 或计划模式未激活时的 opusplan):',
-      choices: sonnetChoices,
-      default: sonnetChoices[0]?.value
-    }
-  ]);
+    const config: Config = {
+      baseUrl,
+      authToken,
+      opusModel,
+      sonnetModel,
+      haikuModel,
+      subagentModel
+    };
 
-  // 选择 Haiku 模型
-  const haikuModels = categories.haiku.length > 0 ? categories.haiku : categories.other;
-  const haikuChoices = modelChoices.filter(choice => haikuModels.includes(choice.value));
-  const { haikuModel } = await inquirer.prompt([
-    {
-      type: 'list',
-      name: 'haikuModel',
-      message: '选择 Haiku 模型 (用于 haiku 或后台功能):',
-      choices: haikuChoices,
-      default: haikuChoices[0]?.value
-    }
-  ]);
+    // 保存配置
+    saveConfig(config);
 
-  // 选择子代理模型
-  const { subagentModel } = await inquirer.prompt([
-    {
-      type: 'list',
-      name: 'subagentModel',
-      message: '选择子代理模型:',
-      choices: modelChoices,
-      default: modelChoices[1]?.value || modelChoices[0]?.value
-    }
-  ]);
-
-  const config: Config = {
-    baseUrl,
-    authToken,
-    opusModel,
-    sonnetModel,
-    haikuModel,
-    subagentModel
-  };
-
-  // 保存配置
-  saveConfig(config);
-  
-  return config;
+    return config;
   } catch (error) {
     console.error(chalk.red(`配置失败: ${error instanceof Error ? error.message : String(error)}`));
     process.exit(1);
@@ -528,34 +515,34 @@ async function selectModelsFromConfig(config: Config): Promise<Config> {
 
   // 保存更新后的配置
   saveConfig(updatedConfig);
-  
+
   return updatedConfig;
 }
 
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
-  
+
   // 处理命令行参数
   if (args.includes('help')) {
     showHelp();
     return;
   }
-  
+
   if (args.includes('clear')) {
     clearConfig();
     console.log(chalk.yellow('请重新运行 ccna 进行配置'));
     return;
   }
-  
+
   // 获取额外参数（非 clear 和 help 的参数）
   const extraArgs = args.filter(arg => arg !== 'clear' && arg !== 'help');
-  
+
   try {
     let config: Config;
-    
+
     // 检查是否有配置
     const existingConfig = loadConfig();
-    
+
     if (existingConfig) {
       console.log(chalk.blue('发现现有配置，正在选择模型...'));
       config = await selectModelsFromConfig(existingConfig);
@@ -566,7 +553,7 @@ async function main(): Promise<void> {
 
     // 显示配置
     printEnvVars(config);
-    
+
     // 直接启动 Claude Code
     console.log(chalk.yellow('\n正在启动 Claude Code...'));
     await startClaudeWithEnv(config, extraArgs);
