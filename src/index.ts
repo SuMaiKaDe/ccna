@@ -354,49 +354,39 @@ async function configureInitial(): Promise<Config> {
       short: model.id
     }));
 
-    // 分类模型
-    const modelIds = models.map(m => m.id);
-    const categories = categorizeModels(modelIds);
-
     // 选择模型
     console.log(chalk.blue('\n请选择默认模型:'));
 
     // 选择 Opus 模型
-    const opusModels = categories.opus.length > 0 ? categories.opus : categories.other;
-    const opusChoices = modelChoices.filter(choice => opusModels.includes(choice.value));
     const { opusModel } = await inquirer.prompt([
       {
         type: 'list',
         name: 'opusModel',
         message: '选择 Opus 模型 (用于 opus 或计划模式激活时的 opusplan):',
-        choices: opusChoices,
-        default: opusChoices[0]?.value
+        choices: modelChoices,
+        default: modelChoices[0]?.value
       }
     ]);
 
     // 选择 Sonnet 模型
-    const sonnetModels = categories.sonnet.length > 0 ? categories.sonnet : categories.other;
-    const sonnetChoices = modelChoices.filter(choice => sonnetModels.includes(choice.value));
     const { sonnetModel } = await inquirer.prompt([
       {
         type: 'list',
         name: 'sonnetModel',
         message: '选择 Sonnet 模型 (用于 sonnet 或计划模式未激活时的 opusplan):',
-        choices: sonnetChoices,
-        default: sonnetChoices[0]?.value
+        choices: modelChoices,
+        default: modelChoices[0]?.value
       }
     ]);
 
     // 选择 Haiku 模型
-    const haikuModels = categories.haiku.length > 0 ? categories.haiku : categories.other;
-    const haikuChoices = modelChoices.filter(choice => haikuModels.includes(choice.value));
     const { haikuModel } = await inquirer.prompt([
       {
         type: 'list',
         name: 'haikuModel',
         message: '选择 Haiku 模型 (用于 haiku 或后台功能):',
-        choices: haikuChoices,
-        default: haikuChoices[0]?.value
+        choices: modelChoices,
+        default: modelChoices[0]?.value
       }
     ]);
 
@@ -448,49 +438,39 @@ async function selectModelsFromConfig(config: Config): Promise<Config> {
     short: model.id
   }));
 
-  // 分类模型
-  const modelIds = models.map(m => m.id);
-  const categories = categorizeModels(modelIds);
-
   // 选择模型
   console.log(chalk.blue('\n请选择默认模型:'));
 
   // 选择 Opus 模型
-  const opusModels = categories.opus.length > 0 ? categories.opus : categories.other;
-  const opusChoices = modelChoices.filter(choice => opusModels.includes(choice.value));
   const { opusModel } = await inquirer.prompt([
     {
       type: 'list',
       name: 'opusModel',
       message: '选择 Opus 模型 (用于 opus 或计划模式激活时的 opusplan):',
-      choices: opusChoices,
-      default: config.opusModel || opusChoices[0]?.value
+      choices: modelChoices,
+      default: config.opusModel || modelChoices[0]?.value
     }
   ]);
 
   // 选择 Sonnet 模型
-  const sonnetModels = categories.sonnet.length > 0 ? categories.sonnet : categories.other;
-  const sonnetChoices = modelChoices.filter(choice => sonnetModels.includes(choice.value));
   const { sonnetModel } = await inquirer.prompt([
     {
       type: 'list',
       name: 'sonnetModel',
       message: '选择 Sonnet 模型 (用于 sonnet 或计划模式未激活时的 opusplan):',
-      choices: sonnetChoices,
-      default: config.sonnetModel || sonnetChoices[0]?.value
+      choices: modelChoices,
+      default: config.sonnetModel || modelChoices[0]?.value
     }
   ]);
 
   // 选择 Haiku 模型
-  const haikuModels = categories.haiku.length > 0 ? categories.haiku : categories.other;
-  const haikuChoices = modelChoices.filter(choice => haikuModels.includes(choice.value));
   const { haikuModel } = await inquirer.prompt([
     {
       type: 'list',
       name: 'haikuModel',
       message: '选择 Haiku 模型 (用于 haiku 或后台功能):',
-      choices: haikuChoices,
-      default: config.haikuModel || haikuChoices[0]?.value
+      choices: modelChoices,
+      default: config.haikuModel || modelChoices[0]?.value
     }
   ]);
 

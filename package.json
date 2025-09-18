@@ -1,6 +1,6 @@
 {
 	"name": "ccna",
-	"version": "1.0.0",
+	"version": "1.0.2",
 	"description": "Claude Code configuration and launch tool for setting up NEW-API endpoints and model selection",
 	"main": "dist/index.js",
 	"bin": {
